@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Optional extended WISE-style compose example.
+# This file is not required for any skill to function.
+
+services:
+  wise:
+    build: .
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
