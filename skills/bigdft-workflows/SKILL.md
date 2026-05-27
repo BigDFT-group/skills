@@ -72,13 +72,40 @@ The agent should:
 - keep user-facing calculation setup separate from source-maintenance guidance;
 - preserve license and attribution metadata when moving snippets between skills;
 - mark uncertain BigDFT behavior as TODO rather than inventing APIs or defaults;
-- prefer project-specific BigDFT patterns over generic DFT or generic HPC advice.
+- prefer project-specific BigDFT patterns over generic DFT or generic HPC advice;
+- when a BigDFT-related thread validates reusable operational knowledge, ask whether the corresponding canonical skill file in the project-skills repository should be updated.
 
 The agent should not:
 
 - merge unrelated roles into this broad workflow skill;
 - assume RemoteManager, PyBigDFT, or BigDFT executables are installed without checking;
-- depend on optional examples outside this file for essential behavior.
+- depend on optional examples outside this file for essential behavior;
+- treat installed runtime copies under `~/.codex/skills` as the canonical source for skill maintenance.
+
+## Skill Maintenance Feedback
+
+If a thread reveals that a BigDFT, PSolver, Futile, RemoteManager, or WISE skill is missing important reusable guidance, update the canonical repository copy first:
+
+```text
+/workspace/Sync/gitprojects/project-skills/skills/<skill-name>/SKILL.md
+```
+
+Preserve the GPL-3.0-or-later frontmatter, SPDX header, role-specific scope, and attribution notes. Update `skills/README.md` if the skill scope or description changes, and update `NOTICE.md` if new adapted snippets or attribution details are added.
+
+After editing a canonical skill, validate and reinstall:
+
+```bash
+python3 scripts/validate_skills.py
+scripts/install-codex-skills.sh install
+```
+
+If a runtime copy under `~/.codex/skills` was edited during experimentation, compare it against the canonical skill and import only reviewed changes:
+
+```bash
+scripts/install-codex-skills.sh diff <skill-name>
+scripts/install-codex-skills.sh import-one <skill-name>
+scripts/install-codex-skills.sh install
+```
 
 ## Essential Checks
 

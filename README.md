@@ -380,6 +380,48 @@ When modifying an existing skill:
 
 ---
 
+## Installing Skills for Codex
+
+Install the repository skills into Codex with:
+
+```bash
+scripts/install-codex-skills.sh install
+```
+
+By default, skills are copied to:
+
+```text
+${CODEX_SKILLS_DIR:-${CODEX_HOME:-$HOME/.codex}/skills}
+```
+
+Use `--dest DIR` for a project-local or test installation:
+
+```bash
+scripts/install-codex-skills.sh install --dest .codex/skills
+```
+
+The repository copy under `skills/<skill-name>/SKILL.md` is canonical. Installed copies under `~/.codex/skills` or `$CODEX_HOME/skills` are runtime deployment copies. Do not make unreviewed runtime edits the source of truth.
+
+Useful commands:
+
+```bash
+scripts/install-codex-skills.sh list
+scripts/install-codex-skills.sh diff
+scripts/install-codex-skills.sh diff <skill-name>
+scripts/install-codex-skills.sh import-one <skill-name>
+```
+
+Use `import-one` only after reviewing an intentional improvement made to an installed runtime copy. After importing or editing a canonical skill, run validation and reinstall:
+
+```bash
+python3 scripts/validate_skills.py
+scripts/install-codex-skills.sh install
+```
+
+For Zed or another Codex frontend, keep the skills installed in the Codex skills directory and use a small project rule or `AGENTS.md` instruction to consider `bigdft-workflows` for BigDFT-related threads. This avoids loading every detailed skill body into unrelated conversations.
+
+---
+
 ## Validation and Documentation CI
 
 The repository includes a GitHub Actions workflow at:
