@@ -43,6 +43,20 @@ end program
 
 For subroutines/modules that are called from code already initialized, just `use futile` (or specific submodules) and skip init/finalize.
 
+## Precision Kinds
+
+`f_precisions` defines the Futile kind policy. Prefer the module names over raw `iso_c_binding` names in Futile public APIs. The ABI kinds are `f_int8`, `f_short`, `f_integer`, `f_long`, `f_simple`, `f_double`, `f_long_double`, `f_byte`, and `f_logical`. These are the concrete kinds for module procedures and overload families; Futile APIs that expose intrinsic scalar/array data should be available and tested for the relevant ABI kind family.
+
+`f_short`, `f_integer`, and `f_long` are the canonical fixed-width integer names and map to `c_int16_t`, `c_int32_t`, and `c_int64_t`. `f_int8` maps to `c_int8_t`. Do not add parallel `f_int16`, `f_int32`, or `f_int64` aliases unless the project policy changes.
+
+`f_byte` is a C-compatible logical kind and maps to `c_bool`; use it as `logical(f_byte)`, not as an integer byte kind. Use `f_logical = kind(.false.)` for default Fortran logical data.
+
+Semantic kinds describe host-code intent and should not be used to define required module procedures without an availability or ABI check. The current semantic kinds are `f_quadruple`, `f_address`, and `f_size_t`: `f_quadruple` requests quadruple real precision when the processor supports it, `f_address` maps to `c_intptr_t`, and `f_size_t` maps to `c_size_t`.
+
+## Build and Test
+
+Futile is a subproject of the BigDFT suite. When Futile lives under the BigDFT source tree, do not configure or install it as a standalone package for validation. Use the `bigdft-installation` skill and the BigDFT `Installer.py`/jhbuild workflow, selecting the Futile module or Futile-specific tests as needed.
+
 ## Dictionaries
 
 Futile dictionaries are the central data structure -- they map directly to YAML and Python dicts. They are pointer-based linked trees.
