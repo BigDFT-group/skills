@@ -66,14 +66,18 @@ Before asking, check whether the current working directory (or a nearby director
 I see bigdft-suite at <path>. Is that the one you want to build?
 ```
 
-Only if nothing is found, ask:
+Only if nothing is found, offer to clone the official repository:
 
 ```
-Where is the bigdft-suite source directory?
-(e.g. ~/bigdft-suite or /opt/bigdft-suite)
+I couldn't find bigdft-suite nearby. I can clone it for you:
+
+  git clone https://gitlab.com/l_sim/bigdft-suite.git
+
+Where should I clone it?  (Default: ./bigdft-suite)
+Or provide an existing path if you already have a copy elsewhere.
 ```
 
-Verify the path exists and contains `Installer.py`.
+After cloning, verify the path contains `Installer.py`. Because the clone produces a git checkout, `Installer.py autogen -y` must be run before the first build.
 
 ### 2 -- Build directory
 
