@@ -68,6 +68,8 @@ How would you like to define your system?
   4. Build from PyBigDFT (Systems/Atoms API)
 ```
 
+If they choose option 4, load the `bigdft-systems-api-user` skill immediately before continuing — it covers the Atom/Fragment/System API in full detail.
+
 If they provide positions inline or an XYZ file, ask about boundary conditions:
 
 ```
@@ -820,3 +822,4 @@ mix:
 - Units: BigDFT works internally in atomic units (bohr, hartree). Positions can use angstroem or atomic.
 - Time unit: 1 a.u. of time ~ 0.02419 fs. A timestep of 20.67 a.u. ~ 0.5 fs.
 - **Always validate with a dry run** (`SystemCalculator(dry_run=True)`) before submitting real calculations, especially on HPC systems. It catches input errors and estimates memory in seconds.
+- `run_dir` passed to `SystemCalculator.run()` must be a plain relative subdirectory name — no slashes and no absolute paths. If the script lives elsewhere, `os.chdir()` to the desired working directory before calling `run()`.
