@@ -372,6 +372,32 @@ Tell the user:
 - Build parallelism is auto-detected (CPU count + 1)
 - After a successful build, source the environment: `source <build-dir>/install/bin/bigdftvars.sh`
 
+### Development Rebuilds
+
+When debugging an already configured source checkout, prefer the existing
+package build directory for quick recompilation of one module:
+
+```bash
+cd <build-dir>/<module>
+make install -j
+```
+
+For example, to rebuild only the BigDFT package in the common `/opt/bigdft`
+development tree:
+
+```bash
+cd /opt/bigdft/bigdft
+make install -j
+```
+
+Use the jhbuild-controlled path when the module needs to be reconfigured,
+forced through the normal dependency machinery, or rebuilt from the rcfile:
+
+```bash
+cd <build-dir>
+python3 <source-dir>/bundler/jhbuild.py -f <rcfile> --no-interact buildone -f <module>
+```
+
 ## Troubleshooting
 
 If the build fails, check the error and suggest fixes:
