@@ -56,6 +56,29 @@ CUDA available:  ___  (yes / no; check nvcc or nvidia-smi)
 OpenCL avail:    ___  (yes / no)
 ```
 
+## Prerequisites: install missing system packages
+
+BigDFT needs a full build toolchain plus a few libraries. Using the pre-flight results,
+install **only what is missing** (do not reinstall what is already present). On Debian/Ubuntu:
+
+```bash
+pkgs="gfortran cmake pkg-config autoconf automake libtool libtool-bin \
+  libopenmpi-dev openmpi-bin libopenblas-dev liblapack-dev \
+  python3-dev libyaml-dev python3-yaml"
+missing=""
+for p in $pkgs; do dpkg -s "$p" >/dev/null 2>&1 || missing="$missing $p"; done
+if [ -n "$missing" ]; then
+  apt-get update && apt-get install -y $missing
+else
+  echo "All build dependencies already present — nothing to install."
+fi
+```
+
+- `gfortran`, an MPI implementation (e.g. OpenMPI) and BLAS/LAPACK are **mandatory**.
+- `libyaml-dev` is required by the **futile** module (configure fails with `yaml.h: No such file`).
+- `cmake` is required by the **CheSS** module (the other modules use autotools).
+- Without root access, ask the user to provide these via the system's module manager instead.
+
 ## Questions
 
 ### 1 -- Source location
@@ -349,6 +372,14 @@ skip = ["ntpoly"]
 ```
 
 ## Build Execution
+
+> **Do NOT run the build as root.** jhbuild refuses to run as the root user. If you are root
+> (e.g. inside a container), create a normal user and build as them:
+>
+> ```bash
+> useradd -m builduser && chown -R builduser <build-dir> <source-dir>
+> su - builduser -c "cd <build-dir> && <source-dir>/Installer.py build -f <build-dir>/custom.rc -y"
+> ```
 
 After writing the rcfile, determine whether the source is a git checkout or a tarball. If the source directory contains a `.git` directory (or the individual packages like `futile/`, `bigdft/` contain `autogen.sh` but no `configure`), it is a developer build from git and needs autogen first.
 
