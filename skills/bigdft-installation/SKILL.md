@@ -27,6 +27,7 @@ ls ./Installer.py ../Installer.py ../bigdft-suite/Installer.py ./bigdft-suite/In
 pwd                  # current directory
 uname -s -m          # OS and architecture
 hostname             # for matching existing rcfiles
+whoami               # if root, every Installer.py call must go through runuser (see below)
 which mpifort mpif90 mpicc gfortran gcc ifort ifx icx 2>/dev/null
 mpifort --version 2>/dev/null || mpif90 --version 2>/dev/null
 gfortran --version 2>/dev/null
@@ -55,6 +56,18 @@ Python 3:        ___  (version or none)
 CUDA available:  ___  (yes / no; check nvcc or nvidia-smi)
 OpenCL avail:    ___  (yes / no)
 ```
+
+**Build user — decide this BEFORE running any `Installer.py`/jhbuild command.** jhbuild refuses
+to run as root and then silently returns an empty module list (`List of modules to be treated:
+['']`) that looks like a broken rcfile — do not chase it. If `whoami` is `root` (e.g. a
+container), run **every** `Installer.py` call (autogen, build, clean, …) through
+`runuser -u "$owner" --` from the start:
+- existing/partial build → `owner=$(stat -c %U <build-dir>)` — it already has access;
+- fresh build → create a user and build under a path it owns and can traverse, e.g. its own home
+  (`useradd -m builder`). Never `chown` someone else's `0700` home.
+
+Pick the build path once and never move it afterward — jhbuild bakes absolute paths into
+`install/bin/*vars.sh`.
 
 ## Prerequisites: install missing system packages
 
@@ -104,12 +117,32 @@ After cloning, verify the path contains `Installer.py`. Because the clone produc
 
 ### 2 -- Build directory
 
-```
-Where should I create the build directory?
-Default: a "build" directory next to the source.
+**First locate an existing build — do not guess its path.** A previous/partial install leaves a
+build directory holding `custom.rc` and `install/_jhbuild/`. Search for it before assuming
+anything (run, don't ask; the build dir name is arbitrary — `build`, `bigdft-build`, …):
+
+```bash
+find "$(dirname <source-dir>)" -maxdepth 2 -name custom.rc 2>/dev/null
 ```
 
-The build directory **must** be separate from the source. Create it if it doesn't exist.
+If a match is found, its directory **is** the build dir to reuse — resume it (see below). Only if
+nothing is found, create a new one:
+
+```
+Where should I create the build directory?
+Default: a "build" directory beside the source.
+```
+
+The build directory **must** be a **sibling** of the source, never inside it — e.g. `/p/build`
+next to `/p/bigdft-suite`, **not** `<source-dir>/build`. Create it if it doesn't exist.
+
+**If a build directory already exists (any level of previous/partial install):** do not trust
+the build log, and do not wipe it. The build is incremental — re-run
+`Installer.py build -f <build-dir>/custom.rc -y` to finish only what is missing (works at any
+level: empty, half, almost done). Then confirm success on the **real artifact**, not on a
+"completed" message: `source <build-dir>/install/bin/bigdftvars.sh && bigdft --help`. If
+`bigdft` is missing, it is not done. If the build is broken, use `clean` (then rebuild), or
+`startover` (git checkout) for a full reset.
 
 ### 3 -- Compilers and MPI
 
@@ -373,12 +406,12 @@ skip = ["ntpoly"]
 
 ## Build Execution
 
-> **Do NOT run the build as root.** jhbuild refuses to run as the root user. If you are root
-> (e.g. inside a container), create a normal user and build as them:
+> **Build as the user decided in pre-flight.** If root, prefix EVERY `Installer.py` call
+> (autogen included) with `runuser -u "$owner" --` — use `runuser`, not `su -` (which can fail
+> with "Authentication failure" in containers):
 >
 > ```bash
-> useradd -m builduser && chown -R builduser <build-dir> <source-dir>
-> su - builduser -c "cd <build-dir> && <source-dir>/Installer.py build -f <build-dir>/custom.rc -y"
+> runuser -u "$owner" -- bash -lc "cd <build-dir> && <source-dir>/Installer.py build -f <build-dir>/custom.rc -y"
 > ```
 
 After writing the rcfile, determine whether the source is a git checkout or a tarball. If the source directory contains a `.git` directory (or the individual packages like `futile/`, `bigdft/` contain `autogen.sh` but no `configure`), it is a developer build from git and needs autogen first.
