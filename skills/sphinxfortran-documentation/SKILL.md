@@ -58,14 +58,15 @@ Rules:
 - Prefer default-private modules plus explicit `public ::` exports.
 - Document public generic interfaces at the interface block.
 - Keep private implementations private unless the page is explicitly internal developer documentation.
-- Put routine/type descriptions immediately after the declaration line.
+- Put routine/type descriptions immediately after the declaration line, including declarations with standard prefixes such as `elemental pure function`, `pure function`, `recursive subroutine`, or `module procedure`.
 - Put argument, variable, and field comments on the declaration line.
 - Keep one documented entity per declaration line.
 - For CI-covered examples, source comments should use `.. fortranliteral::` to include the executable snippet.
 
 ## Fortranliteral Directive
 
-Use `fortranliteral` in Fortran comments when an example should be rendered with the API object. It resolves its path relative to `fortran_literal_root` and forwards common `literalinclude` options. Prefer `:marker:` for standard snippets:
+Use `fortranliteral` in Fortran comments when an example should be rendered with the API object. It resolves its path relative to `fortran_literal_root` and forwards common `literalinclude` options. Prefer `:marker:` for standard snippets. Keep this directive with the public object documentation when sphinx-fortran can render that object directly; for manually documented objects, keep the directive in the `.rst` page until the object can be parsed/rendered by autodoc.
+
 
 ```fortran
 ! .. fortranliteral:: tests/example_usage.f90
@@ -127,7 +128,7 @@ A robust documentation CI job should:
    - required `fortranliteral` example snippets are rendered;
 5. when `sphinx-llm` is enabled, verify the LLM export exists, usually `llms-full.txt`.
 
-Example rendered-page checks can be simple Python scripts that inspect generated HTML IDs and required text snippets. They should fail loudly when a public symbol, topic, or example disappears.
+Example rendered-page checks can be simple Python scripts that inspect generated HTML IDs and required text snippets. They should fail loudly when a public symbol, topic, or example disappears. Parser/rendering contract fixtures should include common declaration variants, including prefixed procedures such as `elemental pure function`, so source comments remain attached to the rendered API.
 
 ## Generic Interface Guidance
 
