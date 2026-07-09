@@ -58,10 +58,27 @@ Rules:
 - Prefer default-private modules plus explicit `public ::` exports.
 - Document public generic interfaces at the interface block.
 - Keep private implementations private unless the page is explicitly internal developer documentation.
-- Put routine/type descriptions immediately after the declaration line, including declarations with standard prefixes such as `elemental pure function`, `pure function`, `recursive subroutine`, or `module procedure`.
+- Put routine/type/interface descriptions immediately after the declaration line, including declarations with standard prefixes such as `elemental pure function`, `pure function`, `recursive subroutine`, or `module procedure`; do not rely on comments placed only before the declaration, because they are not attached to the rendered API object.
 - Put argument, variable, and field comments on the declaration line.
 - Keep one documented entity per declaration line.
 - For CI-covered examples, source comments should use `.. fortranliteral::` to include the executable snippet.
+
+## Source-Level API Groups
+
+Use `f:autogroup` for group-level prose that applies to several public objects in a large module, especially parameter families. Keep individual object facts on declaration lines and put only the shared concept in the group prose.
+
+```fortran
+! .. f:autogroup:: preferred-kinds
+!    :title: Preferred kind parameters
+!    :members: f_integer, f_double, f_byte
+!
+!    These names define the public ABI kind policy for host codes.
+integer, parameter :: f_integer = c_int32_t ! Canonical integer kind.
+integer, parameter :: f_double = c_double   ! Canonical real kind.
+integer, parameter :: f_byte = c_bool       ! C-compatible logical kind.
+```
+
+`f:automodule` renders the group title, prose, and explicit members. The `:members:` option may be repeated. Grouped members are omitted from the default module member sections to avoid duplicate API entries.
 
 ## Fortranliteral Directive
 
@@ -158,13 +175,14 @@ A project-specific Codex skill can then refer to the generated Markdown and to t
 When adding documentation for a Fortran module:
 
 1. Identify the public compiler API from `public`/`private` declarations.
-2. Move API descriptions next to declarations in the Fortran source.
+2. Move API descriptions immediately after the relevant declaration line in the Fortran source; merge any important pre-declaration prose into that rendered comment block.
 3. Add or extend executable example tests for public helpers/interfaces.
 4. Mark example regions with `doc-example-start:` and `doc-example-end:` comments.
-5. Add `fortranliteral` directives next to the public API source comments.
-6. Wire the example program into CI.
-7. Add rendered-document checks for symbols, topics, private leaks, and examples.
-8. Render locally and run the checker before handing off.
+5. Add `f:autogroup` blocks for parameter/object families that need shared prose.
+6. Add `fortranliteral` directives next to the public API source comments.
+7. Wire the example program into CI.
+8. Add rendered-document checks for symbols, topics, private leaks, groups, and examples.
+9. Render locally and run the checker before handing off.
 
 ## Safety and Boundaries
 
