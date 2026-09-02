@@ -1,0 +1,11 @@
+# Container catalog
+
+`Dockerfiles/container-catalog.yaml` is the operational ledger for maintained ContainerXP images. It complements rather than replaces the older `release-matrix.yaml`: the matrix describes intended families; the catalog records a concrete reproducible image lineage and verification state.
+
+Create one catalog entry per maintained image chain (ground + full SDK + any compact CI-SDK). Use a new entry or explicit revision record when an image is rebuilt with changed inputs.
+
+Record: identity and consumer; source URL/branch/commit and tarball source; Dockerfiles, base image, packages, conditions, versions, and architecture arguments; local and publish tags; post-push registry digest; exact or parameter-complete commands; validation outcomes; update triggers; and retention policy.
+
+Use `publication.status: pending` until a push completes. Then obtain the registry manifest digest and write it exactly. Never substitute a local image ID for a registry digest.
+
+The catalog intentionally avoids credentials and machine-local paths as required inputs. If a host networking workaround is necessary, record it as an operational note and retain a normal build path where possible.

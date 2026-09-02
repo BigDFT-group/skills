@@ -1,0 +1,3 @@
+interface:
+  display_name: "ContainerXP Maintainer"
+  short_description: "Maintain BigDFT ContainerXP image chains"

@@ -1,0 +1,58 @@
+# ContainerXP image architecture
+
+## Purpose
+
+ContainerXP builds BigDFT Suite environments in layers. It is separate from the BigDFT source repository: Dockerfiles describe the platform and delivery mechanism, while the Suite modulesets and rcfiles describe what is compiled and how it is configured.
+
+```text
+ground flavor
+  └─ full SDK (selected packages + conditions)
+       ├─ compact CI-SDK (curated payload on compatible ground)
+       │    └─ runtime/test image (compile and execute the Suite)
+       └─ developer SDK (complete upstream build environment)
+```
+
+The runtime Dockerfile should be generic: its substantial variation is the `FROM` SDK image. Ground images are allowed to be dedicated by provider (GNU/Ubuntu, oneAPI, oneAPI+CUDA, and future variants) because package repositories, compilers, driver stubs, and environment setup genuinely vary.
+
+## Codename and rcfile contract
+
+For `CODENAME=name`, ContainerXP helpers resolve:
+
+| Role | Expected rcfile |
+| --- | --- |
+| Build `/opt/upstream` dependencies | `name-upstream.rc` |
+| Build BigDFT Suite components | `name.rc` |
+
+The SDK helper `bigdft-upstream` uses the upstream rcfile. The Suite helper `compile_bigdft-suite.sh` invokes the BigDFT installer with the Suite rcfile. The image must carry rcfiles from the same source revision/branch as its sources, or record why a different immutable reference is intentional.
+
+`/opt/upstream/bin/bigdftvars.sh` is the normal installation-side environment contract. The entrypoint should source it after provider/toolchain hooks, so `PATH`, `CMAKE_PREFIX_PATH`, `PKG_CONFIG_PATH`, library paths, and related prefix variables work in non-interactive CI shells and login shells. Ground-specific variables belong in the ground image hook.
+
+## SDK selection
+
+`Dockerfile-bigdft-sdk` has one general SDK target. A build invocation selects content using `BASE_IMAGE`, `CODENAME`, source and tarball references, `SDK_APT_PACKAGES`, `SDK_PIP_PACKAGES`, `SDK_PACKAGES`, and `SDK_CONDITIONS`.
+
+Core, client, and suite differ by declared root package/condition sets. Document them in the catalog, not as competing Dockerfile profiles. Validate moduleset dependency ordering before moving a prerequisite from the image to a moduleset.
+
+## Kokkos and accelerator notes
+
+Kokkos configuration is selected through conditions and an architecture argument. CUDA Kokkos builds need the installed `/opt/upstream/bin/nvcc_wrapper`; do not depend on a transient source checkout copy. Static components used by shared consumers require PIC.
+
+Build-time CUDA driver stubs resolve links in an image build; they are not a runtime replacement for the NVIDIA driver. At runtime, the NVIDIA container runtime injects host driver libraries. Validate this with `--gpus all` and appropriate `NVIDIA_DRIVER_CAPABILITIES`.
+
+OpenCL uses the ICD loader. A CUDA-capable image can expose NVIDIA OpenCL by shipping an NVIDIA ICD entry referring to `libnvidia-opencl.so.1`; the host driver supplies that library at GPU runtime. Keep POCL when CPU OpenCL is an intended portable CI test platform. Validate both platforms separately.
+
+## Trace-guided compact CI-SDKs
+
+`Dockerfile-bigdft-ci-sdk` copies a narrow payload from a verified full SDK onto a fresh ABI-compatible ground image. Preserve `/opt/upstream`, its environment script, Suite sources and paired rcfiles, compiler/MPI wrappers and helper scripts, installed Kokkos CUDA wrapper when applicable, needed cached archives, and development dependencies needed by GObject introspection.
+
+`TRACE_FILE_ACCESS=1` in the runtime diagnostic image writes `/opt/bigdft/file-access-summary.txt`. It is a pruning aid, but records both real file opens and path probes from `setvars.sh`, shell utilities, and dynamic loading. Do not prune a directory solely because it is absent from one trace. Retest a fresh build after every meaningful removal.
+
+## Required validation sequence
+
+1. Validate ground compiler/toolchain discovery and provider repositories.
+2. Build the full SDK, verifying each selected package's installed contract.
+3. Confirm `bigdftvars.sh`, helper rcfile resolution, and CMake/pkg-config prefix behavior.
+4. Build a clean BigDFT Suite with the matching Suite rcfile. Use a local source overlay only for diagnostics; repeat from declared source reference before release.
+5. Build the compact CI-SDK and repeat the clean Suite compilation. Final CI validation must not fetch source archives from the network.
+6. Run feature-specific tests: Kokkos consumers, CPU/GPU OpenCL platform discovery, GPU-enabled execution, and normal CI job commands as relevant.
+7. Record results, tags, and post-push registry digests in the catalog.
