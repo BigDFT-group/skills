@@ -51,6 +51,7 @@ bash -n scripts/wise-env scripts/wise-up scripts/wise-check
 ```bash
 ./scripts/ci/sidecar-smoke
 ./scripts/ci/sidecar-wise-up-smoke
+./scripts/ci/sidecar-nvidia-smoke  # NVIDIA driver/toolkit host only
 ./scripts/ci/bridge-startup-smoke
 ./scripts/ci/host-open-smoke
 ```
@@ -106,6 +107,7 @@ Key rules:
 - Do not use the same Docker data volume from multiple active WISE sessions. `wise-up` should refuse that case.
 - Use `wise-down` prune options for sidecar cleanup when disk space is needed.
 - Inside WISE, nested containers can mount WISE-visible paths, for example `/workspace/work`, but files created by root in the inner container will be root-owned from WISE unless user mapping is handled.
+- `WISE_GPU=0` uses the ordinary sidecar. `WISE_GPU=1` selects `compose.docker-sidecar.gpu.yaml`, which builds an NVIDIA Container Toolkit-enabled nested daemon so inner `docker run --gpus all` can work. Require a working host NVIDIA driver and host Docker NVIDIA runtime before enabling it.
 
 ## Ports and Networking
 
@@ -119,10 +121,11 @@ In sidecar mode, published ports are explicit and generated into a per-session `
 
 Rules:
 
-- OpenVSCode is published automatically from `OPENVSCODE_PORT`.
+- OpenVSCode is published automatically from `OPENVSCODE_PORT`; use `wise-env --openvscode-port PORT` to change both the service and its automatic mapping without retaining stale `3123` mappings.
 - Default bind address is `127.0.0.1`.
 - Explicit non-loopback binds such as `0.0.0.0:PORT:PORT` expose the service beyond the host and require service-level authentication.
-- Avoid host networking for the privileged sidecar; it would give the nested daemon influence over host networking/firewall state.
+- Bridge mode is the default. Use `wise-env --sidecar-network host` only as an explicit VPN/debug fallback: the privileged sidecar then shares host networking and service listeners bypass generated `ports:` mappings.
+- Bridge sidecar sessions enable IPv6 by default with a deterministic ULA `/64`; use `--network-ipv6-subnet` to override it or `--no-ipv6` only where the Docker host cannot support IPv6 bridges.
 - In non-sidecar host-network mode, `OPENVSCODE_PORT` remains directly relevant for avoiding host port collisions.
 
 ## Display, X11, Zed, and GPU
@@ -155,7 +158,7 @@ GPU checks:
 
 `llvmpipe` is acceptable as an extra fallback when Vulkan also reports integrated, discrete, or virtual hardware GPUs. It is a problem when it is the only Vulkan device. Linux GPU access depends on `/dev/dri` mounts and supplemental render-node GIDs from `wise-env`. Numeric GIDs in `id` output are valid when the container has no matching group name.
 
-Use `ZED_ALLOW_EMULATED_GPU=1` only when software rendering is intentional; it hides the warning but does not restore hardware acceleration.
+Use `ZED_ALLOW_EMULATED_GPU=1` only when software rendering is intentional; it hides the warning but does not restore hardware acceleration. Intel/Mesa GUI acceleration uses `/dev/dri` and is independent of `WISE_GPU`; `--gpus all` is the NVIDIA compute path.
 
 ## Host Opener
 
@@ -177,7 +180,7 @@ Validate with:
 
 ## CI and Documentation
 
-CI includes static checks plus representative smoke tests for sessions, host-open, bridge startup, and sidecar workflows. When adding options:
+CI includes static checks plus representative smoke tests for sessions, host-open, bridge startup, ordinary sidecar workflows, and a manually run NVIDIA sidecar workflow. When adding options:
 
 - update CLI help;
 - regenerate `docs/generated/cli-reference.md`;
