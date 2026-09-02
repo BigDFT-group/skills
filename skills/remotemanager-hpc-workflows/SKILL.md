@@ -34,6 +34,22 @@ If remotemanager is not installed, tell the user to install it:
 pip install remotemanager
 ```
 
+## Dataset Registry Promotion Check
+
+Before promoting a Python callable into a RemoteManager MCP or other global function registry, verify that the remote-execution serializer will include every helper dependency used by the callable. A function that works locally can still fail remotely if only the top-level function is serialized and module-level helpers are omitted. Typical remote symptoms include:
+
+```text
+NameError: name '_helper_function' is not defined
+```
+
+For registry promotion, require one of these paths before launching a real campaign:
+
+- decorate or wrap helper dependencies with RemoteManager's `RemoteFunction` dependency mechanism;
+- make the registered callable self-contained when the helper logic is small and stable;
+- package the helpers in an importable module that is explicitly available on the remote Python path.
+
+Do not rely on `dry_run=True` alone for this check. Inspect the generated repository/script or run one real smoke-test job, fetch results, and confirm no dependency-packaging errors before adding the function to a shared registry or expanding to a full campaign.
+
 ## Questions
 
 ### 1 -- Remote host

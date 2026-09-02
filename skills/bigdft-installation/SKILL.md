@@ -350,9 +350,13 @@ skip = ["ntpoly"]
 
 ## Build Execution
 
-After writing the rcfile, determine whether the source is a git checkout or a tarball. If the source directory contains a `.git` directory (or the individual packages like `futile/`, `bigdft/` contain `autogen.sh` but no `configure`), it is a developer build from git and needs autogen first.
+After writing the rcfile, inspect whether the generated configure machinery is
+already present. Run `Installer.py autogen` only before the first build from a
+git checkout when `configure` is absent, or after changing `configure.ac` or
+project `m4` macros. Ordinary source changes and `Makefile.am` changes do not
+require an explicit autogen step.
 
-**For git checkouts (developer builds):**
+**For a git checkout requiring regeneration:**
 ```bash
 cd FILL  # build directory
 FILL/Installer.py autogen -y
@@ -374,8 +378,9 @@ Tell the user:
 
 ### Development Rebuilds
 
-When debugging an already configured source checkout, prefer the existing
-package build directory for quick recompilation of one module:
+When developing in an already configured source checkout, work directly in the
+corresponding package build directory. For ordinary source changes, rebuild and
+install only that package:
 
 ```bash
 cd <build-dir>/<module>
@@ -389,6 +394,15 @@ development tree:
 cd /opt/bigdft/bigdft
 make install -j
 ```
+
+
+Do not invoke `Installer.py`, jhbuild, or autogen for each development edit.
+Return to the installer only when the build directory must be reconstructed,
+configuration or dependencies change, or `configure.ac` or project `m4` macros
+change. In an already configured package build, run `make` after editing
+`Makefile.am`: Automake regeneration and `config.status` propagation are
+triggered automatically by the generated Makefile dependencies. Use explicit
+autogen only if that automatic regeneration is unavailable or fails.
 
 Use the jhbuild-controlled path when the module needs to be reconfigured,
 forced through the normal dependency machinery, or rebuilt from the rcfile:
@@ -425,7 +439,7 @@ After the initial build, the user may need these:
 | `Installer.py buildone <module>` | Build a single module |
 | `Installer.py cleanone <module>` | Clean a single module |
 | `Installer.py check` | Run test suite |
-| `Installer.py autogen` | Regenerate configure scripts (developers) |
+| `Installer.py autogen` | Regenerate after `configure.ac`/m4 changes, or before an unconfigured first developer build |
 | `Installer.py dry_run` | Show build order (generates buildprocedure.png) |
 | `Installer.py link` | Show linker flags for external codes |
 
@@ -469,7 +483,7 @@ cd <build-dir>
 - Never build inside the source directory. Always create a separate build directory.
 - The `buildrc` file is auto-generated in the build directory after the first build and can be reused for subsequent builds.
 - After a successful build, a `Makefile` is generated in the build directory with convenience targets (`make build`, `make clean`, `make check`).
-- For developer builds (from git, not tarball), run `Installer.py autogen` before the first build.
+- For developer builds, run `Installer.py autogen` only before an unconfigured first build or after `configure.ac`/m4 changes; ordinary source and `Makefile.am` edits use the package build directory and `make install`.
 - `source install/bin/bigdftvars.sh` sets up PATH, LD_LIBRARY_PATH, PYTHONPATH, and PKG_CONFIG_PATH.
 - The build system auto-detects CPU count and uses `jobs = cpu_count + 1` for parallel make.
 - Conditions control optional features: `testing`, `python`, `no_upstream`, `bio`, `ase`, `vdw`, `sirius`, `sycl`, `dill`, `boost`, `spg`, `amber`, `devdoc`, `simulation`.
