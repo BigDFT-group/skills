@@ -81,6 +81,38 @@ Named sessions live under `~/.config/wise/sessions/NAME.env` by default:
 
 `wise-up` runs `wise-check` by default. `wise-up --extra-compose FILE` records override provenance in the env file so later helper commands reuse it.
 
+## Execution Context
+
+Before proposing a WISE administration command, establish whether the agent is on the launcher host or inside the WISE workstation. Treat a shell as inside WISE when `/.dockerenv` exists or WISE container variables such as `WISE_CONTAINER_MODE` are present. State the required context next to commands.
+
+- **Launcher host only:** `wise-env`, `wise-up`, `wise-down`, `wise-check`, `wise-sessions`, `wise-shell`, and `wise-sudo`; host Docker/NVIDIA runtime configuration; `xhost`; host network diagnostics. `wise-sudo` is launched on the host and runs its requested command as root *inside the existing WISE workstation*. Do not tell an agent already inside WISE to invoke it there.
+- **Inside WISE:** normal development commands, editors, and `docker run` task containers through `DOCKER_HOST`. When a host-only action is needed, give the user a short labelled host-terminal recipe instead of attempting it from the session.
+- **Nested task container:** only paths mirrored into the sidecar (workspace, session home, or `/tmp`) can be bind-mounted. It cannot perform WISE lifecycle operations.
+
+## Session Renewal
+
+A configuration change that affects Compose selection, mounts, network policy, or sidecar image requires recreation from the launcher host. Preserve an existing session by using its env file as both the input base and output file. For example, to enable the NVIDIA sidecar for an existing named session:
+
+```bash
+# Launcher host, outside WISE.
+SESSION="$HOME/.config/wise/sessions/research.env"
+./scripts/wise-down --env-file "$SESSION"
+./scripts/wise-env --base-env "$SESSION" --env-file "$SESSION" --gpu
+./scripts/wise-check --env-file "$SESSION"
+./scripts/wise-up --env-file "$SESSION" --build
+```
+
+Before this GPU renewal, configure the launcher host NVIDIA runtime and verify it outside WISE:
+
+```bash
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+nvidia-smi -L
+docker run --rm --gpus all nvidia/cuda:12.8.1-base-ubuntu24.04 nvidia-smi -L
+```
+
+Then, inside the renewed WISE session, verify the nested path with `docker run --rm --gpus all nvidia/cuda:12.8.1-base-ubuntu24.04 nvidia-smi -L`. If the agent is currently inside WISE, it should ask the user to run the host block, then continue only after the renewed session is available.
+
 ## Session Model
 
 Important generated/session variables:
