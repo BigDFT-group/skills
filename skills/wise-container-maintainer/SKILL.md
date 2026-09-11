@@ -85,7 +85,7 @@ Named sessions live under `~/.config/wise/sessions/NAME.env` by default:
 
 Before proposing a WISE administration command, establish whether the agent is on the launcher host or inside the WISE workstation. Treat a shell as inside WISE when `/.dockerenv` exists or WISE container variables such as `WISE_CONTAINER_MODE` are present. State the required context next to commands.
 
-- **Launcher host only:** `wise-env`, `wise-up`, `wise-down`, `wise-check`, `wise-sessions`, `wise-shell`, and `wise-sudo`; host Docker/NVIDIA runtime configuration; `xhost`; host network diagnostics. `wise-sudo` is launched on the host and runs its requested command as root *inside the existing WISE workstation*. Do not tell an agent already inside WISE to invoke it there.
+- **Launcher host only:** `wise-env`, `wise-up`, `wise-down`, `wise-check`, `wise-sessions`, `wise-shell`, `wise-sudo`, and `wise-host-open`; host Docker/NVIDIA runtime configuration; `xhost`; host network diagnostics. `wise-sudo` is launched on the host and runs its requested command as root *inside the existing WISE workstation*. Do not tell an agent already inside WISE to invoke it there.
 - **Inside WISE:** normal development commands, editors, and `docker run` task containers through `DOCKER_HOST`. When a host-only action is needed, give the user a short labelled host-terminal recipe instead of attempting it from the session.
 - **Nested task container:** only paths mirrored into the sidecar (workspace, session home, or `/tmp`) can be bind-mounted. It cannot perform WISE lifecycle operations.
 
@@ -194,7 +194,7 @@ Use `ZED_ALLOW_EMULATED_GPU=1` only when software rendering is intentional; it h
 
 ## Host Opener
 
-`wise-up --host-open` starts an opt-in Unix-socket bridge so processes inside WISE can open host browser/document targets through `xdg-open`/`sensible-browser`.
+`wise-up --host-open` starts an opt-in Unix-socket bridge so processes inside WISE can open host browser/document targets through `xdg-open`/`sensible-browser`. For persistent sessions, use `wise-env --host-open`; it writes `WISE_HOST_OPEN=1`, which makes later `wise-up` launches start the bridge automatically. Use `wise-env --no-host-open` to revoke that session policy.
 
 Security model:
 
@@ -222,7 +222,7 @@ CI includes static checks plus representative smoke tests for sessions, host-ope
 ## Safety Boundaries
 
 - Never replace the host Docker socket approach with a convenience mount.
-- Do not silently relax host desktop or credential access. Prefer explicit env-file policy plus visible warnings.
+- Do not silently relax host desktop or credential access. Prefer explicit env-file policy plus visible warnings. Dockerfile builds use host networking to survive restrictive VPN/firewall environments, but this must remain a build-only setting and not change the runtime sidecar network policy.
 - Treat SSH/Git credentials as sensitive. Prefer future agent-forwarding designs over mounting raw private keys when possible.
 - Do not make sidecar port bindings public unless the user explicitly asks and the docs warn about exposure.
 - Do not remove backward-facing safeguards such as project replacement checks or sidecar data-volume concurrency checks without a clear replacement.
