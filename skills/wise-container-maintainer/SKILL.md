@@ -219,6 +219,8 @@ CI includes static checks plus representative smoke tests for sessions, host-ope
 - update `docs/user-guide/configuration.md` or `docs/user-guide/launch-modes.md` as appropriate;
 - add or adjust smoke assertions, usually in `scripts/ci/session-smoke` for env generation and `scripts/ci/sidecar-wise-up-smoke` for user-facing launch behavior.
 
+GitLab Pages publishes chatbot-facing `llms.txt` and `llms-full.txt` at the site root. Do not hand-maintain or commit those artifacts: `scripts/build-docs` generates them from `mkdocs.yml` navigation after MkDocs renders `site/`, and the Pages job must call that script. `static-checks` verifies the generator and required content whenever documentation changes.
+
 ## Safety Boundaries
 
 - Never replace the host Docker socket approach with a convenience mount.
