@@ -676,6 +676,14 @@ call confpot_apply(cpot, psi_mesh, vpsi_mesh)
 
 The `ao_confinement` and `confinement` parameters from `lin_basis_params` control these potentials.
 
+## Suite-First Synchronization
+
+When changing liborbs from a BigDFT-suite checkout, follow the
+`bigdft-suite-integration-maintainer` workflow: commit and push the bundled
+suite view first, then let its `check_library` job validate and publish liborbs
+upstream. A direct liborbs upstream change is only for reconciliation and must
+be pulled back into the suite immediately.
+
 ## Key Source Files
 
 | File | Lines | What it contains |

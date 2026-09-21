@@ -449,6 +449,14 @@ call finalize_real_space_conversion()
 
 This is used internally by BigDFT when projecting pseudopotential projectors and charge densities onto the wavelet grid.
 
+## Suite-First Synchronization
+
+When changing ATlab from a BigDFT-suite checkout, follow the
+`bigdft-suite-integration-maintainer` workflow: commit and push the bundled
+suite view first, then let its `check_library` job validate and publish ATlab
+upstream. A direct ATlab upstream change is only for reconciliation and must
+be pulled back into the suite immediately.
+
 ## Key Source Files
 
 | File | Lines | What it contains |

@@ -25,7 +25,8 @@ Dielectric: ∇·[ε(r)∇V(r)] = -4πρ(r)
 
 It uses FFT-based convolution with Interpolating Scaling Functions (ISF) to handle multiple boundary conditions. It also provides implicit solvation (PCM-like) with cavity construction and non-electrostatic energy terms.
 
-Source: `psolver/src/` (~20 Fortran files)
+Primary sources are in `psolver/src/`. The optional Kokkos implementation is
+a nested CMake project in `psolver/kokkos/`.
 
 ## Quick Start: Solving the Poisson Equation
 
@@ -326,6 +327,104 @@ psolver:
 
 The GPU path replaces CPU FFTs with cuFFT (CUDA) or oneMKL FFTs (SYCL). The kernel multiplication and packing/unpacking also run on GPU when available.
 
+## Suite-First Synchronization
+
+When changing PSolver from a BigDFT-suite checkout, follow the
+`bigdft-suite-integration-maintainer` workflow: commit and push the bundled
+suite view first, then let its `check_library` job validate and publish PSolver
+upstream. A direct PSolver upstream change is only for reconciliation and must
+be pulled back into the suite immediately.
+
+## Kokkos Backend Architecture
+
+The Kokkos implementation lives in `psolver/kokkos/` as a separately
+buildable CMake project. It is kept outside the Automake compilation graph,
+but PSolver's `Makefile.am` must list it explicitly for distribution tarballs.
+The BigDFT modulesets expose it as the `psolverkokkos` module and use the
+`kokkos` condition to make PSolver depend on it. Preserve the `no_upstream`
+condition around Kokkos, KokkosFFT, and FFTW dependencies so SDK builds can
+reuse container-provided packages.
+
+### Compiled execution spaces
+
+Configure the specializations contained in `libpsolverkokkos` with:
+
+```sh
+cmake -S psolver/kokkos -B build-kokkos \
+  -DPSOLVERKOKKOS_BACKENDS=CPU,DEFAULT
+```
+
+The default is `CPU,DEFAULT`. Entries are case-insensitive:
+
+| Entry | Execution space |
+|-------|-----------------|
+| `CPU` | `Kokkos::DefaultHostExecutionSpace` |
+| `DEFAULT` | `Kokkos::DefaultExecutionSpace` |
+| `OPENMP` | `Kokkos::OpenMP` |
+| `THREADS` | `Kokkos::Threads` |
+| `SERIAL` | `Kokkos::Serial` |
+| `CUDA` | `Kokkos::Cuda` |
+| `HIP` or `AMD` | `Kokkos::HIP` |
+| `SYCL` | `Kokkos::SYCL` |
+| `HPX` | `Kokkos::HPX` |
+
+CMake must reject an explicitly requested space that the installed Kokkos
+does not provide. At most one explicit device family (`CUDA`, `HIP`, or
+`SYCL`) is supported in one build. `DEFAULT` follows the Kokkos installation;
+use an explicit device name when the build must be reproducible across hosts.
+Host specializations require FFTW3 plus `fftw3_omp` or `fftw3_threads`.
+
+### Single-library runtime dispatch
+
+Each specialization is compiled into a private object library and all objects
+are linked into one installed `libpsolverkokkos`. Do not introduce `dlopen`,
+backend plugin libraries, or filesystem-dependent symbol discovery. The
+public C/Fortran ABI remains unique; a function table routes calls to the
+selected typed implementation.
+
+The input values have distinct runtime meaning:
+
+- `KOKKOSCPU` selects the compiled host API;
+- `KOKKOSGPU` selects the compiled device/default API.
+
+`pkernel_set` selects the family from the `DEVICE_CPU` attribute before
+calling `psolverkokkos_initialize`. The current lifecycle permits one selected
+family per Kokkos initialization and rejects switching CPU/GPU after
+initialization, because views and FFT plans may still be alive.
+
+When a Kokkos installation enables CUDA, initializing all compiled backends
+through global `Kokkos::initialize()` can require a CUDA driver even for a CPU
+request. The current implementation initializes only the selected execution
+space using Kokkos' version-specific pre/implementation/post lifecycle. Treat
+these `Kokkos::Impl` calls as an internal compatibility point when updating
+Kokkos.
+
+Every execution policy in typed kernels must name its execution space, for
+example `Kokkos::RangePolicy<ExecSpace>`. An implicit count-based
+`parallel_for` or `parallel_reduce` selects `DefaultExecutionSpace`; in a
+CUDA-enabled build this can silently launch CUDA for a `KOKKOSCPU` object.
+
+The current multi-instantiation build uses compile definitions to give the
+private symbols of each backend unique names and constructs one API table per
+specialization. Keep the CMake rename list synchronized with internal exported
+symbols until this is replaced by a templated `backend_impl<ExecSpace>` design.
+The planned separation of generic buffer handling into a Futile Kokkos wrapper
+has not happened yet; do not assume those interfaces are owned by Futile.
+
+### Backend regression tests
+
+Use both test layers after backend changes:
+
+```sh
+ctest --test-dir build-kokkos --output-on-failure
+make -C build/psolver/tests check-kokkos-cpu
+make -C build/psolver/tests check-kokkos-gpu  # requires a usable GPU/driver
+```
+
+The Automake targets run `PS_Basics_ortho` for free, periodic, surface, and
+wire boundary conditions using `psaccel-kokkos-{cpu,gpu}.yaml`. Regenerate
+PSolver's Autotools files after changing `psolver/tests/Makefile.am`.
+
 ## Key Types Reference
 
 ### coulomb_operator
@@ -435,6 +534,11 @@ opt%potential_integral ! Offset for periodic BC
 | `FDder.f90` | Finite difference derivatives for ∇ε |
 | `scaling_function.f90` | ISF basis for free BC kernel |
 | `gpu_fft_interfaces.f90` | GPU FFT dispatch (CUDA, SYCL) |
+| `kokkos_fortran_interfaces.f90` | Fortran bindings for Kokkos selection/lifecycle |
+| `psolver/kokkos/CMakeLists.txt` | Execution-space validation and specialization build |
+| `psolver/kokkos/kokkos_dispatch.*` | Stable public ABI and runtime API-table dispatch |
+| `psolver/kokkos/kokkosall.*` | Typed allocation, transfer, packing, and reduction kernels |
+| `psolver/kokkos/kokkosfft.*` | Execution-space-specific KokkosFFT plans |
 
 ## Density Normalization Convention
 

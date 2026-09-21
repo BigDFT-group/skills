@@ -53,6 +53,14 @@ For subroutines/modules that are called from code already initialized, just `use
 
 Semantic kinds describe host-code intent and should not be used to define required module procedures without an availability or ABI check. The current semantic kinds are `f_quadruple`, `f_address`, and `f_size_t`: `f_quadruple` requests quadruple real precision when the processor supports it, `f_address` maps to `c_intptr_t`, and `f_size_t` maps to `c_size_t`.
 
+## Suite-First Synchronization
+
+When changing Futile from a BigDFT-suite checkout, follow the
+`bigdft-suite-integration-maintainer` workflow: commit and push the bundled
+suite view first, then let its `check_library` job validate and publish Futile
+upstream. A direct Futile upstream change is only for reconciliation and must
+be pulled back into the suite immediately.
+
 ## Build and Test
 
 Futile is a subproject of the BigDFT suite. When Futile lives under the BigDFT source tree, do not configure or install it as a standalone package for validation. Use the `bigdft-installation` skill and the BigDFT `Installer.py`/jhbuild workflow, selecting the Futile module or Futile-specific tests as needed.

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Bigdft Suite Integration Maintainer"
+  short_description: "Synchronize BigDFT suite and library subrepos"
