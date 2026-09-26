@@ -131,6 +131,9 @@ Important generated/session variables:
 - `CONTAINER_XDG_RUNTIME_DIR`: session-specific runtime dir inside `/tmp`.
 - `DISPLAY`: written as literal `DISPLAY=$DISPLAY` so the launch shell supplies the live display.
 - `WISE_EXTRA_COMPOSE_FILES`: recorded extra Compose overrides.
+- `WISE_GITCONFIG_MODE`: host Git-configuration policy. `host` is the strict default and requires a readable regular `HOST_GITCONFIG`; `none` is selected only by `wise-env --no-host-gitconfig` and mounts a session-scoped empty read-only file without inventing a Git identity.
+
+WISE must preserve strict host Git configuration by default. When `~/.gitconfig` is absent, `wise-env`/`wise-check` should tell the launcher-host user to configure `user.name` and `user.email`, and show the explicit opt-out regeneration command. Do not silently create a host `.gitconfig`, a fake identity, or copy Git/SSH credentials into an active WISE session.
 
 WISE sets container `PATH` in Compose so `${CONTAINER_HOME}/.local/bin` is visible to OpenVSCode, startup hooks, `wise-shell`, and `docker compose exec`. Do not put `PATH=...:$PATH` into generated env files; Compose env files are not shell init files.
 
