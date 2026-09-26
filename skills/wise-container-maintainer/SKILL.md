@@ -58,6 +58,12 @@ bash -n scripts/wise-env scripts/wise-up scripts/wise-check
 
 - Do not stage unrelated untracked files. Preserve user changes in the worktree.
 
+## Agent Tooling Baseline
+
+WISE installs coding-agent CLIs, but does not manage their conversation persistence. Invoke agents directly and rely on each agent's own resume/recovery mechanism; do not reintroduce a `wise-agent` tmux wrapper, tmux session aliases, or tmux as an image dependency for that purpose.
+
+Keep broadly useful non-interactive utilities in the image when they are required across agent workflows. The current baseline includes `file`, `patch`, `poppler-utils`, `jq`, build helpers (`build-essential`, `cmake`, `ninja-build`, `pkg-config`), and network/debugging tools (`iproute2`, `dnsutils`, `netcat-openbsd`, `lsof`, `procps`, `psmisc`, `strace`, `shellcheck`). Avoid adding niche language runtimes or large toolchains without a documented WISE use case.
+
 ## Core Commands
 
 Normal session flow:
