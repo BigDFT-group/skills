@@ -87,6 +87,8 @@ Named sessions live under `~/.config/wise/sessions/NAME.env` by default:
 
 `wise-up` runs `wise-check` by default. `wise-up --extra-compose FILE` records override provenance in the env file so later helper commands reuse it.
 
+`wise-env` is the sole writer of session-owned Compose overrides (ports, bridge networking, and sidecar host networking). Runtime helpers must only resolve and consume those recorded files. When an expected generated override is absent, they must stop and print a launcher-host `wise-env --base-env ... --env-file ...` regeneration command; never silently recreate it.
+
 ## Execution Context
 
 Before proposing a WISE administration command, establish whether the agent is on the launcher host or inside the WISE workstation. Treat a shell as inside WISE when `/.dockerenv` exists or WISE container variables such as `WISE_CONTAINER_MODE` are present. State the required context next to commands.
