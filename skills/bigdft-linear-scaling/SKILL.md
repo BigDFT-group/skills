@@ -449,6 +449,80 @@ ig_occupation:
     # total = 7 valence electrons
 ```
 
+## Constrained (T-CDFT / OPTICAL) Excitations with Linear Scaling
+
+Excited-state constrained-DFT runs are multi-stage chains over one
+support-function (SF) basis. Understanding the stage mechanics is what keeps
+these runs reliable.
+
+### Stage sequence
+
+1. **linear**: build + optimise the occupied SF basis (fresh input guess).
+2. **virtual**: `dft.inputpsiid: linear_restart`, optimise extra (empty)
+   states on top. `lin_general.extra_states` and `mix.norbsempty` **must be
+   equal** and large enough to span the highest targeted virtual
+   (indices are 1-based over the diagonalised subspace: with `nocc`
+   occupied, orbital `nocc+1` is the LUMO; reaching LUMO+2 needs value >= 3).
+3. **S0**: ground-state kernel in the full occupied+virtual subspace
+   (`kernel_restart_mode: kernel`, DIAG kernel).
+4. **constrained run(s)**: `inputpsiid: linear_restart`,
+   `kernel_restart_mode: diag`, plus a `constrained_dft` block, e.g. a
+   SINGLET OPTICAL constraint with hole/electron `orbitals` given per
+   fragment. BigDFT ORBITAL INDICES run over the subspace defined above
+   (occupied count from `Total Number of Orbitals` in the linear log).
+5. **mixed-density evaluation** (see below).
+
+Each stage reads the previous stage's SF data; fresher stages overwrite their
+own outputs only.
+
+### Data-directory mechanics
+
+- A run named `<name>` writes `log-<name>.yaml` and reads/writes its SF data
+  under `data-<name>/`; the SF basis itself lives in a directory named after
+  `radical:` in the input (e.g. `data-<mol>_PBE_SF_sp_spd_8.0`), containing
+  `minBasis.yaml`, the `minBasis-k001-NR.b*` wavefunction files,
+  `minBasis_coeff`, and sparse matrices.
+- A dependent stage gets its own `data-<name>/` containing (a) an entry
+  `data-<radical>` and (b) an xyz alias `<radical>.xyz`. The established
+  pattern is per-file links into the shared SF directory (the suite test
+  `bigdft/tests/DFT/linear/TCDFT/Makefile.am` shows the exact hook; the
+  published workflow instead writes a modified `minBasis.yaml` whose locreg
+  paths point back at the shared directory and links only `minBasis_coeff`
+  and `density_kernel_sparse.mtx`).
+- **Run every chain in a fresh directory.** Re-running stages over stale
+  output leaves mismatched restart files; BigDFT then *silently* falls
+  through to another input-guess policy and can enter a full from-scratch SF
+  optimisation mid-chain (its signature is `D total ~ -1.58E+01` in the
+  support-function optimisation, historically mistaken for a crash).
+
+### Constraint saturation
+
+Drive the excitation with a strong fixed `Vc` and verify, do not assume:
+the converged `Tr(KW)` reported for `Constraint 1` must be ~1 (saturated).
+The published workflow uses `Vc = -500` Ha; `Tr(KW)` is the observable to
+check, not the value of `Vc` itself.
+
+### Mixed-density evaluation
+
+1. Read each pure run's `density_kernel_sparse.mtx` (top level of its
+   `data-<name>/`; MatrixMarket format, `run_name`-agnostic), form the
+   normalised weighted sum, write it as `density_kernel_sparse.mtx` at the
+   TOP level of the mixed run's data dir.
+2. Restart with **`kernel_restart_mode: full_kernel`** -- this is the mode
+   that actually reads that file. Mode `kernel` does NOT, and fails
+   *silently* back to the SF coefficients (you get the ground-state energy
+   with `delta_out ~ 1e-13`; treat that as a tell that nothing was read).
+3. Set `lin_kernel.nit: 1` (not 0: a zero-iteration logfile is invalid).
+   The kernel is then held fixed (the kernel written back out equals the
+   injected one) and the mixed density is evaluated without relaxation.
+
+**Caveat (devel 1.9.6-599)**: under this no-relaxation restart the standard
+energy fields may not equal the energy of the supplied kernel (the published
+notebook extracts `Ground State Optimization[...]['support function
+optimization'][...]['Omega']['ENERGY']` for this purpose, and field
+semantics have shifted since). Cross-check any reported value against the
+pure-component energies before trusting it.
+
 ## Troubleshooting
 
 | Problem | Likely Cause | Fix |

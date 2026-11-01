@@ -332,6 +332,13 @@ print(f"CPU hours: {perf['CPUhours']:.2f}")
 ## Notes
 
 - Logfile output is YAML format. The `Logfile` class uses `futile.YamlIO.load()` internally.
+- It is YAML-ish, not strict YAML: some emitted keys break generic parsers
+  (e.g. `- Occupation Numbers: {Orbitals No. 1-24: 2.0000}` -- the colon
+  inside the flow-mapping key). PyYAML's `safe_load` raises
+  `ScannerError: mapping values are not allowed here` on such logs. The
+  PyBigDFT/futile loaders tolerate it; if you only need scalars
+  (`Energy (Hartree)`, `Tr(KW)`, timings), regex-grep them instead of
+  third-party YAML parsing.
 - Energy is always in Hartree, forces in Ha/Bohr, positions follow the units in the input.
 - For multi-step logfiles (geopt, MD), `len(log)` returns the number of steps. For single-point calculations, `len(log)` returns 0.
 - The `reference_log` attribute on multi-step logfiles points to the index of the lowest-energy step.

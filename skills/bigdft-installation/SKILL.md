@@ -350,6 +350,62 @@ skip = ["ntpoly"]
 
 ## Build Execution
 
+### macOS: build from an activated virtual environment
+
+Create a virtual environment and **activate** it before calling `Installer.py`:
+
+```bash
+uv venv .venv                    # or: python3 -m venv .venv
+. .venv/bin/activate
+uv pip install setuptools wheel  # or: python -m pip install -U setuptools wheel
+```
+
+Homebrew's Python ignores the `--prefix` the installer passes, so `PyBigDFT`
+and `pyFutile` are written under the Homebrew prefix rather than the build tree
+-- and **the build reports success without them**. Inside a virtual environment
+that install scheme does not apply. Any virtual environment works; `uv` is not
+required.
+
+**Activate it; do not just `export PYTHON`.** Two interpreters are involved:
+`configure` respects `$PYTHON` and decides where the packages go, while
+`Installer.py` writes `bigdftvars.sh` for the interpreter it runs under itself.
+Exporting reaches only the first, so the packages land under one Python version
+while `bigdftvars.sh` names another. Activating puts one interpreter on `PATH`
+for both, and makes the version irrelevant.
+
+**Check it, because the failure is silent:**
+
+```bash
+. install/bin/bigdftvars.sh
+python3 -c "import BigDFT, futile; print(BigDFT.__file__)"
+```
+
+The path must be inside the build tree. On `ModuleNotFoundError`, compare
+`grep PYTHONPATH install/bin/bigdftvars.sh` with
+`ls -d install/lib/python*/site-packages` -- different versions mean the
+environment was not activated.
+
+### macOS arm64: futile needs a real 128-bit real kind
+
+On Apple Silicon, C `long double` aliases C `double`, so Futile's
+`f_long_double = c_long_double` is not a distinct kind and the generic
+interfaces in `futile/dicts/f_precisions.f90` collide. The build stops with:
+
+```
+Error: Ambiguous interfaces in generic interface 'f_is_defined' for
+'is_defined_double_complex' at (1) and 'is_defined_long_double_complex' at (2)
+```
+
+Fix: give `f_long_double` a genuinely wider kind, e.g.
+
+```fortran
+integer, parameter :: f_long_double = selected_real_kind(18, 4931)
+```
+
+Keep the change as a patch file rather than an edited checkout (the portable
+upstream fix `merge(c_long_double, selected_real_kind(33, 4931), &
+c_long_double /= c_double)` is on the way via l_sim/bigdft-suite MR 428).
+
 After writing the rcfile, determine whether the source is a git checkout or a tarball. If the source directory contains a `.git` directory (or the individual packages like `futile/`, `bigdft/` contain `autogen.sh` but no `configure`), it is a developer build from git and needs autogen first.
 
 **For git checkouts (developer builds):**
